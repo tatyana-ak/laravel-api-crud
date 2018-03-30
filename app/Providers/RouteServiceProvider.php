@@ -77,9 +77,9 @@ class RouteServiceProvider extends ServiceProvider
     {
         $apiRouter->version($this->version, function ($apiRouter) {
             $apiRouter->group([
-                'prefix' => 'api',
+                'prefix' => 'v1',
                 'namespace' => $this->namespace,
-                'middleware' => ['api', 'force.ssl', 'cors'],
+                'middleware' => ['api', 'force.ssl'],
             ], function ($apiRouter) {
                 require base_path('routes/api.php');
             });

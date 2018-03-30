@@ -1,0 +1,26 @@
+web:
+  build: ./docker/web
+  ports:
+    - "8008:80"
+    - "3000:3000"
+  links:
+    - db
+    - elasticsearch
+  volumes:
+    - ./:/var/www/users
+
+db:
+  build: ./docker/db
+  environment:
+    MYSQL_ROOT_PASSWORD: 123456
+    MYSQL_DATABASE: users
+    MYSQL_USER: root
+    MYSQL_PASSWORD: 123456
+    MYSQL_HOST: "localhost"
+
+  mem_limit: 1000000000
+  ports:
+    - "33333:3306"
+
+elasticsearch:
+  image: "elasticsearch:1.3"

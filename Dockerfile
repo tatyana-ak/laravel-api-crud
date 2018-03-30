@@ -1,72 +1,70 @@
-FROM php:7.1.3-apache
-RUN apt-get update && apt-get install -y \
-        libmcrypt-dev \
-        git \
-        zlib1g-dev \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/*
+FROM ubuntu:16.04
 
-# Basic lumen packages
-RUN docker-php-ext-install \
-        mcrypt \
-        mbstring \
-        tokenizer \
-        zip
+RUN apt-get update
+RUN apt-get upgrade -y
 
-# Add php.ini for production
-COPY php/php.ini-production $PHP_INI_DIR/php.ini
-COPY apache/apache2.conf /etc/apache2/apache2.conf
+COPY debconf.selections /tmp/
+RUN debconf-set-selections /tmp/debconf.selections
 
-#  Configuring Apache
-RUN  rm /etc/apache2/sites-available/000-default.conf \
-         && rm /etc/apache2/sites-enabled/000-default.conf
+RUN apt-get install -y \
+	php7.1 \
+	php7.1-bz2 \
+	php7.1-cgi \
+	php7.1-cli \
+	php7.1-common \
+	php7.1-curl \
+	php7.1-dev \
+	php7.1-enchant \
+	php7.1-fpm \
+	php7.1-gd \
+	php7.1-gmp \
+	php7.1-imap \
+	php7.1-interbase \
+	php7.1-intl \
+	php7.1-json \
+	php7.1-ldap \
+	php7.1-mcrypt \
+	php7.1-mysql \
+	php7.1-odbc \
+	php7.1-opcache \
+	php7.1-pgsql \
+	php7.1-phpdbg \
+	php7.1-pspell \
+	php7.1-readline \
+	php7.1-recode \
+	php7.1-snmp \
+	php7.1-sqlite3 \
+	php7.1-sybase \
+	php7.1-tidy \
+	php7.1-xmlrpc \
+	php7.1-xsl
+RUN apt-get install apache2 libapache2-mod-php7.1 -y
+RUN apt-get install mariadb-common mariadb-server mariadb-client -y
+RUN apt-get install postfix -y
+RUN apt-get install git nodejs npm composer nano tree vim curl ftp -y
+RUN npm install -g bower grunt-cli gulp
 
-# Enable rewrite module
+ENV LOG_STDOUT **Boolean**
+ENV LOG_STDERR **Boolean**
+ENV LOG_LEVEL warn
+ENV ALLOW_OVERRIDE All
+ENV DATE_TIMEZONE UTC
+ENV TERM dumb
+
+COPY ./ /var/www/html/
+COPY run-lamp.sh /usr/sbin/
+
 RUN a2enmod rewrite
+RUN ln -s /usr/bin/nodejs /usr/bin/node
+RUN chmod +x /usr/sbin/run-lamp.sh
+RUN chown -R www-data:www-data /var/www/html
 
-WORKDIR /var/www/html
+VOLUME /var/www/html
+VOLUME /var/log/httpd
+VOLUME /var/lib/mysql
+VOLUME /var/log/mysql
 
-# Download and Install Composer
-RUN curl -s http://getcomposer.org/installer | php \
-    && mv composer.phar /usr/local/bin/composer
+EXPOSE 80
+EXPOSE 3306
 
-# Add vendor binaries to PATH
-ENV PATH=/var/www/html/vendor/bin:$PATH
-
-# Frontend tasks
-RUN apt-get update && apt-get install -y \
-        xz-utils \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/*
-
-ONBUILD COPY composer.json composer.lock artisan /var/www/html/
-ONBUILD COPY database /var/www/html/database/
-
-ONBUILD RUN composer install --prefer-dist --optimize-autoloader --no-scripts --no-dev --profile --ignore-platform-reqs -vvv
-
-ONBUILD COPY package.json /var/www/html/
-
-ONBUILD COPY . /var/www/html
-
-ONBUILD RUN php artisan clear-compiled
-ONBUILD RUN php artisan optimize
-ONBUILD RUN php artisan config:cache
-
-# Configure directory permissions for the web server
-ONBUILD RUN chgrp -R www-data storage /var/www/html/bootstrap/cache
-ONBUILD RUN chmod -R ug+rwx storage /var/www/html/bootstrap/cache
-
-ONBUILD RUN chgrp -R www-data storage /var/www/html/storage
-ONBUILD RUN chmod -R ug+rwx storage /var/www/html/storage
-
-# Configure data volume
-ONBUILD VOLUME /var/www/html/storage/app
-ONBUILD VOLUME /var/www/html/storage/framework/sessions
-ONBUILD VOLUME /var/www/html/storage/logs
-
-# Transform into a lightweight image
-ONBUILD RUN rm -Rf tests/
-
-COPY laravel-apache2-foreground /usr/local/bin/
-
-CMD ["laravel-apache2-foreground"]
+CMD ["/usr/sbin/run-lamp.sh"]
